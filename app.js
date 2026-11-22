@@ -6,6 +6,7 @@ const L = 'ABCDE';
 const KEY = 'arasinav.v2';
 const $ = (s, r = document) => r.querySelector(s);
 const view = $('#view');
+const FOOT = `<footer><span>Hazırlayan: selcukyus</span><span>396 çıkmış soru · 4 ders</span></footer>`;
 
 /* ---------- storage ---------- */
 let S = load();
@@ -53,7 +54,7 @@ function toast(msg) {
 function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
 function confirmBox(text, okLabel, cb) {
   const m = document.createElement('div'); m.className = 'modal';
-  m.innerHTML = `<div class="card stack"><div style="font-weight:600">${esc(text)}</div><div class="row"><button class="btn sec" style="flex:1" data-x>Vazgeç</button><button class="btn no" style="flex:1" data-y>${esc(okLabel)}</button></div></div>`;
+  m.innerHTML = `<div class="card stack"><div class="t">${esc(text)}</div><div class="row" style="margin-top:18px"><button class="btn sec" style="flex:1" data-x>Vazgeç</button><button class="btn" style="flex:1" data-y>${esc(okLabel)}</button></div></div>`;
   m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-x]')) m.remove(); if (e.target.closest('[data-y]')) { m.remove(); cb(); } });
   document.body.appendChild(m);
 }
@@ -71,9 +72,9 @@ function coursePct(ci) {
   return Math.round(100 * m / n);
 }
 function renderHeader() {
-  $('#courses').innerHTML = C.map((c, i) => `<button class="chip ${i === S.course ? 'on' : ''}" data-c="${i}">${esc(c.short)}<span class="pc">%${coursePct(i)}</span></button>`).join('');
+  $('#courses').innerHTML = C.map((c, i) => `<button class="chip ${i === S.course ? 'on' : ''}" data-c="${i}">${esc(c.short)}<span class="cp">%${coursePct(i)}</span></button>`).join('');
   const done = Object.keys(S.q).filter(k => k.startsWith(S.course + ':') && mastered(k)).length;
-  $('#hstat').textContent = `${done}/${qs().length} öğrenildi`;
+  $('#hstat').innerHTML = `<b>${done}</b>/${qs().length} öğrenildi`;
   const on = $('#courses .on'); if (on) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 $('#courses').addEventListener('click', e => {
@@ -103,10 +104,11 @@ let noteQ = '';
 function vNotes() {
   const c = C[S.course], N = c.notes;
   const doneN = N.units.filter((u, i) => S.units[S.course + '-' + i]).length;
-  view.innerHTML = `<h2>${esc(c.name)}</h2><p class="sub">Ezber notları · ${doneN}/${N.units.length} ünite tamamlandı</p>
-  ${searchBox('Notlarda ara (ör. FOB, antrepo, kısas)', noteQ)}
-  <div class="row" style="margin:10px 0 12px"><button class="btn ghost" id="openAll" style="flex:1;min-height:42px">Tümünü aç</button><button class="btn ghost" id="closeAll" style="flex:1;min-height:42px">Tümünü kapat</button></div>
-  <div class="intro">${N.intro}</div><div id="units"></div><footer>Hazırlayan: selcukyus</footer>`;
+  view.innerHTML = `<p class="eyebrow">Ezber notları · ${doneN}/${N.units.length} ünite bitti</p><h2>${esc(c.name)}</h2>
+  <div class="intro">${N.intro}</div>
+  ${searchBox('Notlarda ara: FOB, antrepo, kısas…', noteQ)}
+  <div class="toolbar"><button class="link" id="openAll">Tümünü aç</button><button class="link" id="closeAll">Tümünü kapat</button></div>
+  <div id="units" style="margin-top:14px"></div>${FOOT}`;
   const draw = () => {
     const term = noteQ; let any = false;
     $('#units').innerHTML = N.units.map((u, i) => {
@@ -116,8 +118,8 @@ function vNotes() {
       any = true;
       const open = term ? true : !!S.open[k];
       return `<div class="unit ${open ? 'open' : ''} ${S.units[k] ? 'done' : ''}" data-k="${k}">
-        <button data-tg><span class="tick">${S.units[k] ? '✓' : i + 1}</span><span class="ttl">${hl('>' + esc(u.t) + '<', term).slice(1, -1)}</span><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></button>
-        <div class="ubody">${hl(u.h, term)}<button class="btn ${S.units[k] ? 'sec' : 'ok'} block donebtn" data-done>${S.units[k] ? 'Tamamlandı olarak işaretli · geri al' : 'Bu üniteyi bitirdim ✓'}</button></div></div>`;
+        <button data-tg aria-expanded="${open}"><span class="tick">${S.units[k] ? '✓ ' : ''}${String(i + 1).padStart(2, '0')}</span><span class="ttl">${hl('>' + esc(u.t.replace(/^Ünite \d+:\s*/, '')) + '<', term).slice(1, -1)}</span><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg></button>
+        <div class="ubody">${hl(u.h, term)}<button class="btn ${S.units[k] ? 'sec' : ''} block donebtn" data-done>${S.units[k] ? 'Bitti olarak işaretli · geri al' : 'Bu üniteyi bitirdim <span class="arr">→</span>'}</button></div></div>`;
     }).join('') || '';
     if (!any) $('#units').innerHTML = `<div class="empty">“${esc(term)}” için sonuç yok.</div>`;
   };
@@ -144,23 +146,23 @@ function cardPool() {
 function vCards() {
   if (!FC) FC = { pool: cardPool(), i: 0, flip: false, known: 0, unknown: 0 };
   const total = FC.pool.length;
-  let html = `<h2>Kartlar</h2><p class="sub">Karta dokun: cevap. Sağa kaydır: biliyorum, sola: bilmiyorum.</p>
-  <div class="seg" id="fcs"><button data-s="all" class="${fcSrc === 'all' ? 'on' : ''}">Tümü</button><button data-s="hot" class="${fcSrc === 'hot' ? 'on' : ''}">2+ sınavda</button><button data-s="weak" class="${fcSrc === 'weak' ? 'on' : ''}">Öğrenilmemiş</button></div><div style="height:12px"></div>`;
-  if (!total) { view.innerHTML = html + `<div class="card empty">Bu filtrede kart kalmadı. Tebrikler!</div>`; bindFcSeg(); return; }
+  let html = `<p class="eyebrow">Kartlar · ${esc(C[S.course].name)}</p><h2>Cevabı bil, sonra çevir.</h2><p class="sub">Karta dokun, cevabı gör. Sağa kaydır: biliyordum. Sola kaydır: bilmiyordum.</p>
+  <div class="seg" id="fcs"><button data-s="all" class="${fcSrc === 'all' ? 'on' : ''}">Tümü</button><button data-s="hot" class="${fcSrc === 'hot' ? 'on' : ''}">2+ sınavda</button><button data-s="weak" class="${fcSrc === 'weak' ? 'on' : ''}">Öğrenilmemiş</button></div><div style="height:20px"></div>`;
+  if (!total) { view.innerHTML = html + `<div class="empty">Bu filtrede kart kalmadı. Hepsini öğrenmişsin.</div>`; bindFcSeg(); return; }
   if (FC.i >= total) {
-    view.innerHTML = html + `<div class="card stack" style="text-align:center"><div style="font-size:40px">🎉</div><div style="font-weight:700;font-size:18px">Tur bitti</div><div class="mut">${FC.known} biliyordum · ${FC.unknown} bilmiyordum</div><button class="btn block" id="again">Yeni tur başlat</button></div>`;
+    view.innerHTML = html + `<div class="score">${FC.known}<small> / ${FC.known + FC.unknown}</small></div><p class="verdict">Tur bitti.</p><p class="mut">${FC.known} kartı bildin, ${FC.unknown} kart tekrar listesine girdi.</p><button class="btn block" id="again" style="margin-top:18px">Yeni tur <span class="arr">→</span></button>`;
     bindFcSeg(); $('#again').onclick = () => { FC = null; vCards(); }; return;
   }
   const qi = FC.pool[FC.i], q = qs()[qi], r = st(qid(S.course, qi));
   html += `<div class="spread small mut" style="margin-bottom:6px"><span>${FC.i + 1} / ${total}</span><span>Kutu ${r.box}/5</span></div>
-  <div class="bar" style="margin-bottom:12px"><i style="width:${100 * FC.i / total}%"></i></div>
+  <div class="bar" style="margin-bottom:16px"><i style="width:${100 * FC.i / total}%"></i></div>
   <div class="fc-wrap" id="fcw"><div class="fc ${FC.flip ? 'flip' : ''}" id="fc">
-    <div class="face"><div class="meta"><span class="tag ${q.f > 1 ? 'hot' : ''}">${q.f} sınavda</span><span>${esc(q.s.join(' · '))}</span></div><div class="q">${fmt(q.q)}</div><div class="hint">Cevabı görmek için dokun</div></div>
-    <div class="face back"><div class="mut small">Doğru cevap</div><div class="big">${esc(q.o[q.a])}</div><div class="hint">Biliyor muydun?</div></div>
+    <div class="face"><div class="meta"><span class="tag ${q.f > 1 ? 'hot' : ''}">${q.f} sınavda çıktı</span><span>${esc(q.s.join(' · '))}</span></div><div class="q">${fmt(q.q)}</div><div class="hint">Dokun · cevabı gör</div></div>
+    <div class="face back"><div class="tag ok">Doğru cevap</div><div class="big">${esc(q.o[q.a])}</div><div class="hint">Biliyor muydun?</div></div>
   </div></div>
-  <div class="row" style="margin-top:14px"><button class="btn no" style="flex:1" id="no">✗ Bilmiyordum</button><button class="btn ok" style="flex:1" id="yes">✓ Biliyordum</button></div>
-  <div class="boxes" style="margin-top:14px">${[1, 2, 3, 4, 5].map(b => `<i class="${r.box >= b ? 'on' : ''}"></i>`).join('')}</div>
-  <p class="small mut" style="text-align:center">Bildikçe kart üst kutuya çıkar; bilmediğin kart başa döner ve daha sık gelir.<span class="kbd"> Klavye: Boşluk = çevir, ← / →</span></p>`;
+  <div class="row" style="margin-top:16px"><button class="btn no" style="flex:1" id="no">← Bilmiyordum</button><button class="btn ok" style="flex:1" id="yes">Biliyordum →</button></div>
+  <div class="boxes" style="margin-top:20px">${[1, 2, 3, 4, 5].map(b => `<i class="${r.box >= b ? 'on' : ''}"></i>`).join('')}</div>
+  <p class="small mut" style="text-align:center">Bildiğin kart bir üst kutuya çıkar. Bilmediğin kart ilk kutuya döner ve daha sık gelir.<span class="kbd"> Klavye: Boşluk = çevir, ← / →</span></p>`;
   view.innerHTML = html;
   bindFcSeg();
   const fc = $('#fc'), w = $('#fcw');
@@ -194,14 +196,14 @@ function vTest() {
   const qi = T.pool[T.i], q = qs()[qi], ans = T.answers[T.i];
   const pr = 100 * T.i / T.pool.length;
   view.innerHTML = `<div class="spread small mut" style="margin-bottom:6px"><span>Soru ${T.i + 1}/${T.pool.length}</span><span>✓ ${T.ok} · ✗ ${T.answers.filter(a => a != null).length - T.ok}${tCfg.timer ? ` · <span class="timer" id="tm"></span>` : ''}</span></div>
-  <div class="bar" style="margin-bottom:12px"><i style="width:${pr}%"></i></div>
-  <div class="card"><div class="meta"><span class="tag ${q.f > 1 ? 'hot' : ''}">${q.f} sınavda çıktı</span><span>${esc(q.s.join(' · '))}</span></div>
+  <div class="bar" style="margin-bottom:26px"><i style="width:${pr}%"></i></div>
+  <div><div class="meta"><span class="tag ${q.f > 1 ? 'hot' : ''}">${q.f} sınavda çıktı</span><span>${esc(q.s.join(' · '))}</span></div>
   <div class="q">${fmt(q.q)}</div>
   <div class="opts">${T.perm.map((oi, k) => {
     let cl = ''; if (ans != null) cl = oi === q.a ? 'ok' : oi === ans ? 'no' : 'dim';
     return `<button class="opt ${cl}" data-o="${oi}" ${ans != null ? 'disabled' : ''}><span class="L">${L[k]}</span><span>${esc(q.o[oi])}</span></button>`;
   }).join('')}</div></div>
-  ${ans != null ? `<div class="sticky-act"><button class="btn block" id="nx">${T.i + 1 < T.pool.length ? 'Sonraki soru →' : 'Sonucu gör'}</button></div>` : `<div class="row" style="margin-top:12px"><button class="btn ghost" id="skip" style="flex:1;min-height:42px">Boş bırak</button><button class="btn ghost" id="quit" style="flex:1;min-height:42px">Testi bitir</button></div>`}
+  ${ans != null ? `<div class="sticky-act"><button class="btn block" id="nx">${T.i + 1 < T.pool.length ? 'Sonraki soru' : 'Sonucu gör'} <span class="arr">→</span></button></div>` : `<div class="toolbar" style="margin-top:14px"><button class="link" id="skip">Boş bırak</button><button class="link" id="quit">Testi bitir</button></div>`}
   <p class="small mut kbd" style="text-align:center">Klavye: A–E veya 1–5 ile seç, Enter = sonraki</p>`;
   if (tCfg.timer) tick();
   view.querySelectorAll('.opt').forEach(b => b.onclick = () => choose(+b.dataset.o));
@@ -234,16 +236,14 @@ function testSetup() {
   const wrongN = qs().filter((q, i) => isWrong(qid(S.course, i))).length;
   const newN = qs().filter((q, i) => !S.q[qid(S.course, i)]).length;
   const best = S.tests.filter(t => t.c === S.course).reduce((m, t) => Math.max(m, Math.round(100 * t.s / t.n)), 0);
-  view.innerHTML = `<h2>Test</h2><p class="sub">${esc(C[S.course].name)} · en iyi skor ${best ? '%' + best : '—'}</p>
-  <div class="card stack">
-    <div><div class="small mut" style="margin-bottom:6px">Soru kaynağı</div>
-    <div class="seg" id="src"><button data-v="all">Tümü (${all})</button><button data-v="hot">2+ sınavda (${hot})</button><button data-v="new">Çözülmemiş (${newN})</button><button data-v="wrong">Yanlışlarım (${wrongN})</button></div></div>
-    <div><div class="small mut" style="margin-bottom:6px">Soru sayısı</div>
-    <div class="seg" id="cnt"><button data-v="10">10</button><button data-v="20">20</button><button data-v="40">40</button><button data-v="0">Hepsi</button></div></div>
-    <label class="spread" style="min-height:44px"><span>Süre tut (gerçek sınav: 20 soru ≈ 30 dk)</span><input type="checkbox" id="tmr" ${tCfg.timer ? 'checked' : ''} style="width:22px;height:22px"></label>
-    <button class="btn block" id="go">Teste başla</button>
-  </div>
-  <footer>Hazırlayan: selcukyus</footer>`;
+  view.innerHTML = `<p class="eyebrow">Test · en iyi skor ${best ? '%' + best : 'henüz yok'}</p><h2>${esc(C[S.course].name)}</h2><p class="sub">Şıklar her soruda karışır. Yanlış yaptığın soru “Yanlışlarım”a düşer, doğru bildiğinde çıkar.</p>
+  <div class="field"><p class="label">Soru kaynağı</p>
+  <div class="seg" id="src"><button data-v="all">Tümü<small>${all}</small></button><button data-v="hot">2+ sınavda<small>${hot}</small></button><button data-v="new">Çözülmemiş<small>${newN}</small></button><button data-v="wrong">Yanlışlarım<small>${wrongN}</small></button></div></div>
+  <div class="field"><p class="label">Soru sayısı</p>
+  <div class="seg" id="cnt"><button data-v="10">10</button><button data-v="20">20</button><button data-v="40">40</button><button data-v="0">Hepsi</button></div></div>
+  <label class="field spread" style="cursor:pointer"><span><span class="label" style="display:block;margin-bottom:6px">Süre</span><span class="small mut">Gerçek sınav: 20 soru, 30 dakika</span></span><input type="checkbox" id="tmr" ${tCfg.timer ? 'checked' : ''}></label>
+  <button class="btn acc block" id="go" style="margin-top:24px">Teste başla <span class="arr">→</span></button>
+  ${FOOT}`;
   const paint = () => {
     $('#src').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === tCfg.src));
     $('#cnt').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === tCfg.n));
@@ -266,18 +266,16 @@ function startTest(ids) { T = { pool: ids, i: 0, ok: 0, answers: [], wrong: [], 
 function testResult() {
   clearTimeout(tick._t);
   if (!T.saved) { S.tests.push({ c: S.course, s: T.ok, n: T.pool.length, t: Date.now() }); S.tests = S.tests.slice(-100); save(); T.saved = true; }
-  const p = Math.round(100 * T.ok / T.pool.length), R = 60, CIR = 2 * Math.PI * R;
+  const p = Math.round(100 * T.ok / T.pool.length);
   const net = T.ok; const dur = Math.round((Date.now() - T.start) / 60000);
-  const msg = p >= 85 ? 'Harika, sınava hazırsın.' : p >= 60 ? 'İyi gidiyor. Yanlışları tekrar et.' : 'Notlara dönüp yanlışları çalış.';
+  const msg = p >= 85 ? 'Sınava hazırsın.' : p >= 60 ? 'Yanlışları bir tur daha çöz.' : 'Önce notlara, sonra yanlışlara dön.';
   const wrongU = [...new Set(T.wrong)];
-  view.innerHTML = `<div class="card" style="text-align:center">
-    <svg class="ring" viewBox="0 0 150 150"><circle class="bg" cx="75" cy="75" r="${R}"/><circle class="fg" cx="75" cy="75" r="${R}" stroke-dasharray="${CIR}" stroke-dashoffset="${CIR}" id="rg"/><text x="75" y="75">%${p}</text></svg>
-    <div style="font-weight:700;font-size:18px">${net} / ${T.pool.length} doğru</div>
-    <div class="mut small">${tCfg.timer ? dur + ' dk · ' : ''}${msg}</div>
-    <div class="row" style="margin-top:14px">${wrongU.length ? `<button class="btn no" style="flex:1" id="rw">Yanlışları çöz (${wrongU.length})</button>` : ''}<button class="btn" style="flex:1" id="nt">Yeni test</button></div>
-  </div>
-  ${wrongU.length ? `<h2 style="margin-top:18px">Yanlış / boş bıraktıkların</h2><div class="stack qlist">${wrongU.map(i => { const q = qs()[i]; return `<div class="card"><div class="q" style="font-size:15.5px">${fmt(q.q)}</div><div class="ans"><b>Cevap:</b> ${esc(q.o[q.a])}</div></div>`; }).join('')}</div>` : ''}`;
-  requestAnimationFrame(() => requestAnimationFrame(() => { const rg = $('#rg'); if (rg) rg.style.strokeDashoffset = CIR * (1 - p / 100); }));
+  view.innerHTML = `<p class="eyebrow">Sonuç · ${esc(C[S.course].name)}</p>
+    <div class="score">%${p}</div>
+    <p class="verdict">${net} / ${T.pool.length} doğru. ${msg}</p>
+    <p class="mut small">${tCfg.timer ? dur + ' dakika sürdü.' : ''}</p>
+    <div class="row" style="margin-top:22px">${wrongU.length ? `<button class="btn acc" style="flex:1" id="rw">Yanlışları çöz · ${wrongU.length}</button>` : ''}<button class="btn sec" style="flex:1" id="nt">Yeni test <span class="arr">→</span></button></div>
+  ${wrongU.length ? `<h3 class="sec">Yanlış ya da boş bıraktıkların</h3><div class="qlist">${wrongU.map(i => { const q = qs()[i]; return `<div class="qitem"><div class="q">${fmt(q.q)}</div><div class="ans"><b>Doğru cevap</b>${esc(q.o[q.a])}</div></div>`; }).join('')}</div>` : ''}`;
   if (p >= 85) buzz([20, 60, 20]);
   const rw = $('#rw'); if (rw) rw.onclick = () => startTest(shuffle(wrongU));
   $('#nt').onclick = () => { T = null; vTest(); };
@@ -286,11 +284,11 @@ function testResult() {
 /* ---------- SORULAR (bank) ---------- */
 let bankQ = '', bankF = 'all', hideAns = false, bankLimit = 40;
 function vBank() {
-  view.innerHTML = `<h2>Soru bankası</h2><p class="sub">${qs().length} çıkmış soru, kaç sınavda çıktığına göre sıralı.</p>
-  ${searchBox('Soru veya cevapta ara', bankQ)}
-  <div class="seg" id="bf" style="margin-top:10px"><button data-v="all">Tümü</button><button data-v="hot">2+ sınavda</button><button data-v="wrong">Yanlışlarım</button></div>
-  <label class="spread" style="margin:10px 2px;min-height:40px"><span class="small">Cevapları gizle (kendini sına)</span><input type="checkbox" id="ha" ${hideAns ? 'checked' : ''} style="width:22px;height:22px"></label>
-  <div id="bl" class="stack qlist"></div><div id="more"></div>`;
+  view.innerHTML = `<p class="eyebrow">Soru bankası · ${esc(C[S.course].name)}</p><h2>${qs().length} çıkmış soru</h2><p class="sub">En çok tekrar eden üstte. Cevapları gizleyip kendini sınayabilirsin.</p>
+  ${searchBox('Soru ya da cevapta ara', bankQ)}
+  <div class="seg" id="bf" style="margin-top:16px"><button data-v="all">Tümü</button><button data-v="hot">2+ sınavda</button><button data-v="wrong">Yanlışlarım</button></div>
+  <label class="spread" style="padding:16px 0;cursor:pointer"><span class="small">Cevapları gizle, dokununca aç</span><input type="checkbox" id="ha" ${hideAns ? 'checked' : ''}></label>
+  <div id="bl" class="qlist"></div><div id="more"></div>${FOOT}`;
   const paintSeg = () => $('#bf').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === bankF));
   const draw = () => {
     paintSeg();
@@ -302,11 +300,11 @@ function vBank() {
     $('#bl').innerHTML = shown.length ? shown.map(({ q, i }) => {
       const r = S.q[qid(S.course, i)];
       const stTag = r ? (r.box === 0 ? '<span class="tag no">Yanlış</span>' : r.box >= 2 ? '<span class="tag ok">Öğrenildi</span>' : '<span class="tag">Çalışılıyor</span>') : '';
-      return `<div class="card"><div class="meta"><span><span class="tag ${q.f > 1 ? 'hot' : ''}">${q.f} sınavda</span> ${stTag}</span><span>${esc(q.s.join(' · '))}</span></div>
-      <div class="q" style="font-size:15.5px">${hl('>' + fmt(q.q) + '<', bankQ).slice(1, -1)}</div>
-      <div class="ans ${hideAns ? 'blur' : ''}" data-rv><b>Cevap:</b> ${hl('>' + esc(q.o[q.a]) + '<', bankQ).slice(1, -1)}</div></div>`;
-    }).join('') : `<div class="empty">Sonuç yok.</div>`;
-    $('#more').innerHTML = items.length > bankLimit ? `<button class="btn sec block" id="mb" style="margin-top:12px">Daha fazla göster (${items.length - bankLimit})</button>` : '';
+      return `<div class="qitem"><div class="meta"><span><span class="tag ${q.f > 1 ? 'hot' : ''}">${q.f} sınavda</span>${stTag}</span><span>${esc(q.s.join(' · '))}</span></div>
+      <div class="q">${hl('>' + fmt(q.q) + '<', bankQ).slice(1, -1)}</div>
+      <div class="ans ${hideAns ? 'blur' : ''}" data-rv><b>Cevap</b>${hl('>' + esc(q.o[q.a]) + '<', bankQ).slice(1, -1)}</div></div>`;
+    }).join('') : `<div class="empty">Bu aramaya uyan soru yok.</div>`;
+    $('#more').innerHTML = items.length > bankLimit ? `<button class="btn sec block" id="mb" style="margin-top:20px">${items.length - bankLimit} soru daha göster <span class="arr">↓</span></button>` : '';
     const mb = $('#mb'); if (mb) mb.onclick = () => { bankLimit += 40; draw(); };
   };
   draw();
@@ -328,15 +326,15 @@ function vProg() {
   });
   const tot = rows.reduce((a, r) => a + r.n, 0), totM = rows.reduce((a, r) => a + r.m, 0);
   const allC = Object.values(S.q).reduce((a, r) => a + r.c, 0), allW = Object.values(S.q).reduce((a, r) => a + r.w, 0);
-  view.innerHTML = `<h2>İlerleme</h2><p class="sub">Bir soru, art arda 2 kez doğru bilindiğinde “öğrenildi” sayılır.</p>
-  <div class="kpis"><div class="kpi"><b>%${Math.round(100 * totM / tot)}</b><span>öğrenildi</span></div><div class="kpi"><b>${allC + allW ? '%' + Math.round(100 * allC / (allC + allW)) : '—'}</b><span>isabet</span></div><div class="kpi"><b>${S.tests.length}</b><span>test</span></div></div>
-  <div class="stack prog" style="margin-top:14px">${rows.map(r => `<div class="card">
-    <div class="spread"><b>${esc(r.c.name)}</b><button class="btn ghost" style="min-height:36px;padding:6px 12px" data-go="${r.ci}">Çalış</button></div>
-    <div class="pc" style="margin-top:10px"><div class="bar"><i style="width:${100 * r.m / r.n}%"></i></div><span class="small">${r.m}/${r.n}</span></div>
-    <div class="small mut" style="margin-top:8px">Ünite ${r.ud}/${r.un} · çözülen ${r.seen} · isabet ${r.acc == null ? '—' : '%' + r.acc} · ${r.tn} test${r.last ? ` · son: ${r.last.s}/${r.last.n}` : ''}</div>
+  view.innerHTML = `<p class="eyebrow">İlerleme</p><h2>${totM} / ${tot} soru öğrenildi</h2><p class="sub">Bir soru art arda 2 kez doğru bilindiğinde öğrenilmiş sayılır. Kayıt yalnızca bu tarayıcıda tutulur.</p>
+  <div class="kpis"><div class="kpi"><b>%${Math.round(100 * totM / tot)}</b><span>Öğrenildi</span></div><div class="kpi"><b>${allC + allW ? '%' + Math.round(100 * allC / (allC + allW)) : '—'}</b><span>İsabet</span></div><div class="kpi"><b>${S.tests.length}</b><span>Test</span></div></div>
+  <div>${rows.map(r => `<div class="course-row">
+    <div class="spread"><span class="nm">${esc(r.c.name)}</span><button class="link" data-go="${r.ci}">Teste geç <span class="arr">→</span></button></div>
+    <div class="pc"><div class="bar"><i style="width:${100 * r.m / r.n}%"></i></div><span class="small">${r.m}/${r.n}</span></div>
+    <div class="small mut" style="margin-top:10px">Ünite ${r.ud}/${r.un} · çözülen ${r.seen} · isabet ${r.acc == null ? '—' : '%' + r.acc} · ${r.tn} test${r.last ? ` · son ${r.last.s}/${r.last.n}` : ''}</div>
   </div>`).join('')}</div>
-  <button class="btn sec block" id="rst" style="margin-top:18px">İlerlemeyi sıfırla</button>
-  <footer>Hazırlayan: selcukyus<br>İlerleme yalnızca bu cihazın tarayıcısında saklanır.</footer>`;
+  <button class="link" id="rst" style="margin-top:20px;color:var(--no)">İlerlemeyi sıfırla</button>
+  ${FOOT}`;
   view.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { S.course = +b.dataset.go; save(); T = null; FC = null; location.hash = 'test'; });
   $('#rst').onclick = () => confirmBox('Tüm derslerdeki ilerleme, yanlışlar ve test geçmişi silinsin mi?', 'Sıfırla', () => { const c = S.course; localStorage.removeItem(KEY); S = load(); S.course = c; save(); T = null; FC = null; toast('İlerleme sıfırlandı'); route(); });
 }
